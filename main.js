@@ -3,12 +3,10 @@ const cheerio = require('cheerio')
 const cron = require('node-cron')
 const config = require('./config.json')
 
-// 创建一个带有 cookie 管理的 request 实例
 const req = request.defaults({ jar: true })
 
 let formhash = ''
 
-// 获取登录页面并提取 formhash
 function getFormhash() {
     return new Promise((resolve, reject) => {
         req.get('https://lineage45.com/member.php?mod=logging&action=login', (error, response, body) => {
@@ -29,7 +27,6 @@ function getFormhash() {
     })
 }
 
-// 登录函数
 function login() {
     const formData = {
         formhash: formhash,
@@ -59,7 +56,6 @@ function login() {
     })
 }
 
-// 获取帖子页面的 formhash
 function getThreadFormhash() {
     return new Promise((resolve, reject) => {
         req.get(`https://lineage45.com/thread-${config.tid}-1-1.html`, (error, response, body) => {
@@ -80,7 +76,6 @@ function getThreadFormhash() {
     })
 }
 
-// 发帖函数
 function postReply() {
     const currentTime = Math.floor(new Date().getTime() / 1000) // 获取当前时间戳（秒）
 
@@ -111,12 +106,10 @@ function postReply() {
     })
 }
 
-// 延时函数
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-// 多次发帖函数
 async function multiPost(times, intervalSeconds = 30) {
     console.log(`開始發帖，計劃發送 ${times} 個帖子，間隔 ${intervalSeconds} 秒`)
     
@@ -137,7 +130,6 @@ async function multiPost(times, intervalSeconds = 30) {
     console.log('所有帖子發送完成')
 }
 
-// 获取抽奖页面的 formhash
 function getLotteryFormhash() {
     return new Promise((resolve, reject) => {
         req.get('https://lineage45.com/plugin.php?id=yinxingfei_zzza:yinxingfei_zzza_hall', (error, response, body) => {
@@ -158,7 +150,6 @@ function getLotteryFormhash() {
     })
 }
 
-// 执行抽奖
 function doLottery() {
     const formData = {
         formhash: formhash
@@ -182,7 +173,6 @@ function doLottery() {
     })
 }
 
-// 修改执行流程函数
 async function doLogin(postTimes = 1, intervalSeconds = 30) {
     if (+postTimes > 3) {
         console.error('配置錯誤：發帖數量設定超過3')
@@ -193,7 +183,6 @@ async function doLogin(postTimes = 1, intervalSeconds = 30) {
         await login()
         await getThreadFormhash()
         await multiPost(postTimes, intervalSeconds)
-        // 添加抽奖流程
         await getLotteryFormhash()
         await doLottery()
     } catch (error) {
@@ -201,11 +190,12 @@ async function doLogin(postTimes = 1, intervalSeconds = 30) {
     }
 }
 
-// 开始执行 - 例如发送1个帖子，间隔35秒
 if (config.cron) {
+    console.log('當前為定時模式：')
     cron.schedule(config.cron, () => {
         doLogin(config.times, 35)
     })
 } else {
+    console.log('當前為手動模式：')
     doLogin(config.times, 35)
 }
