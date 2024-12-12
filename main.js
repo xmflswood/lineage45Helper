@@ -1,5 +1,6 @@
 const request = require('request')
 const cheerio = require('cheerio')
+const cron = require('node-cron')
 const config = require('./config.json')
 
 // 创建一个带有 cookie 管理的 request 实例
@@ -201,4 +202,10 @@ async function doLogin(postTimes = 1, intervalSeconds = 30) {
 }
 
 // 开始执行 - 例如发送1个帖子，间隔35秒
-doLogin(config.times, 35)
+if (config.cron) {
+    cron.schedule(config.cron, () => {
+        doLogin(config.times, 35)
+    })
+} else {
+    doLogin(config.times, 35)
+}
