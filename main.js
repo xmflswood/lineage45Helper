@@ -1,109 +1,116 @@
-const request = require('request')
+const fetch = require('node-fetch')
 const cheerio = require('cheerio')
 const cron = require('node-cron')
 const config = require('./config.json')
-
-const req = request.defaults({ jar: true })
+const FormData = require('form-data')
+const tough = require('tough-cookie')
+const cookieJar = new tough.CookieJar()
 
 let formhash = ''
+const cookies = []
 
-function getFormhash() {
-    return new Promise((resolve, reject) => {
-        req.get('https://lineage45.com/member.php?mod=logging&action=login', (error, response, body) => {
-            if (error) {
-                reject(error)
-                return
-            }
-
-            try {
-                const $ = cheerio.load(body)
-                formhash = $('input[name="formhash"]').first().attr('value')
-                console.log('獲取到的登錄頁 formhash:', formhash)
-                resolve(formhash)
-            } catch (err) {
-                reject(err)
+function updateCookies(response) {
+    const rawCookies = response.headers.raw()['set-cookie']
+    if (rawCookies) {
+        rawCookies.forEach(cookie => {
+            if (!cookies.includes(cookie)) {
+                cookies.push(cookie)
             }
         })
+    }
+}
+
+function getHeaders() {
+    return {
+        'Cookie': cookies.join('; '),
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+}
+
+function getFormhash() {
+    return fetch('https://lineage45.com/member.php?mod=logging&action=login', {
+        headers: getHeaders()
     })
+        .then(response => {
+            updateCookies(response)
+            return response.text()
+        })
+        .then(body => {
+            const $ = cheerio.load(body)
+            formhash = $('input[name="formhash"]').first().attr('value')
+            console.log('獲取到的登錄頁 formhash:', formhash)
+            return formhash
+        })
 }
 
 function login() {
-    const formData = {
-        formhash: formhash,
-        referer: 'https://lineage45.com/./',
-        loginfield: 'username',
-        username: config.username,
-        password: config.password,
-        questionid: '0',
-        answer: ''
-    }
+    const formData = new FormData()
+    formData.append('formhash', formhash)
+    formData.append('referer', 'https://lineage45.com/./')
+    formData.append('loginfield', 'username')
+    formData.append('username', config.username)
+    formData.append('password', config.password)
+    formData.append('questionid', '0')
+    formData.append('answer', '')
 
-    return new Promise((resolve, reject) => {
-        req.post({
-            url: 'https://lineage45.com/member.php?mod=logging&action=login&loginsubmit=yes&loginhash=Lp4Sq&inajax=1',
-            formData: formData,
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        }, (error, response, body) => {
-            if (error) {
-                reject(error)
-                return
-            }
-            console.log('登錄成功')
-            resolve(body)
-        })
+    return fetch('https://lineage45.com/member.php?mod=logging&action=login&loginsubmit=yes&loginhash=Lp4Sq&inajax=1', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            ...getHeaders()
+        }
     })
+        .then(response => {
+            updateCookies(response)
+            return response.text()
+        })
+        .then(body => {
+            console.log('登錄成功')
+            return body
+        })
 }
 
 function getThreadFormhash() {
-    return new Promise((resolve, reject) => {
-        req.get(`https://lineage45.com/thread-${config.tid}-1-1.html`, (error, response, body) => {
-            if (error) {
-                reject(error)
-                return
-            }
-
-            try {
-                const $ = cheerio.load(body)
-                formhash = $('input[name="formhash"]').first().attr('value')
-                console.log('獲取到的帖子頁 formhash:', formhash)
-                resolve(formhash)
-            } catch (err) {
-                reject(err)
-            }
-        })
+    return fetch(`https://lineage45.com/thread-${config.tid}-1-1.html`, {
+        headers: getHeaders()
     })
+        .then(response => {
+            updateCookies(response)
+            return response.text()
+        })
+        .then(body => {
+            const $ = cheerio.load(body)
+            formhash = $('input[name="formhash"]').first().attr('value')
+            console.log('獲取到的帖子頁 formhash:', formhash)
+            return formhash
+        })
 }
 
 function postReply() {
-    const currentTime = Math.floor(new Date().getTime() / 1000) // 获取当前时间戳（秒）
+    const currentTime = Math.floor(new Date().getTime() / 1000)
+    const formData = new FormData()
+    formData.append('file', '')
+    formData.append('message', config.msg)
+    formData.append('posttime', currentTime.toString())
+    formData.append('formhash', formhash)
+    formData.append('usesig', '1')
+    formData.append('subject', '')
 
-    const formData = {
-        file: '',
-        message: config.msg,
-        posttime: currentTime,
-        formhash: formhash,
-        usesig: 1,
-        subject: ''
-    }
-
-    return new Promise((resolve, reject) => {
-        req.post({
-            url: `https://lineage45.com/forum.php?mod=post&action=reply&fid=100&tid=${config.tid}&extra=page%3D1&replysubmit=yes&infloat=yes&handlekey=fastpost&inajax=1`,
-            formData: formData,
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        }, (error, response, body) => {
-            if (error) {
-                reject(error)
-                return
-            }
-            console.log('發帖成功')
-            resolve(body)
-        })
+    return fetch(`https://lineage45.com/forum.php?mod=post&action=reply&fid=100&tid=${config.tid}&extra=page%3D1&replysubmit=yes&infloat=yes&handlekey=fastpost&inajax=1`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            ...getHeaders()
+        }
     })
+        .then(response => {
+            updateCookies(response)
+            return response.text()
+        })
+        .then(body => {
+            console.log('發帖成功')
+            return body
+        })
 }
 
 function delay(ms) {
@@ -118,7 +125,7 @@ async function multiPost(times, intervalSeconds = 30) {
             await postReply()
             console.log(`已發送第 ${i + 1}/${times} 個帖子`)
             
-            if (i < times - 1) {  // 如果不是最后一次发帖，则等待
+            if (i < times - 1) {
                 console.log(`等待 ${intervalSeconds} 秒後發送下一個...`)
                 await delay(intervalSeconds * 1000)
             }
@@ -131,46 +138,40 @@ async function multiPost(times, intervalSeconds = 30) {
 }
 
 function getLotteryFormhash() {
-    return new Promise((resolve, reject) => {
-        req.get('https://lineage45.com/plugin.php?id=yinxingfei_zzza:yinxingfei_zzza_hall', (error, response, body) => {
-            if (error) {
-                reject(error)
-                return
-            }
-
-            try {
-                const $ = cheerio.load(body)
-                formhash = $('input[name="formhash"]').first().attr('value')
-                console.log('獲取到的抽獎頁 formhash:', formhash)
-                resolve(formhash)
-            } catch (err) {
-                reject(err)
-            }
-        })
+    return fetch('https://lineage45.com/plugin.php?id=yinxingfei_zzza:yinxingfei_zzza_hall', {
+        headers: getHeaders()
     })
+        .then(response => {
+            updateCookies(response)
+            return response.text()
+        })
+        .then(body => {
+            const $ = cheerio.load(body)
+            formhash = $('input[name="formhash"]').first().attr('value')
+            console.log('獲取到的抽獎頁 formhash:', formhash)
+            return formhash
+        })
 }
 
 function doLottery() {
-    const formData = {
-        formhash: formhash
-    }
+    const formData = new FormData()
+    formData.append('formhash', formhash)
 
-    return new Promise((resolve, reject) => {
-        req.post({
-            url: 'https://lineage45.com/plugin.php?id=yinxingfei_zzza:yinxingfei_zzza_post',
-            formData: formData,
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        }, (error, response, body) => {
-            if (error) {
-                reject(error)
-                return
-            }
-            console.log('完成抽奖')
-            resolve(body)
-        })
+    return fetch('https://lineage45.com/plugin.php?id=yinxingfei_zzza:yinxingfei_zzza_post', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            ...getHeaders()
+        }
     })
+        .then(response => {
+            updateCookies(response)
+            return response.text()
+        })
+        .then(body => {
+            console.log('完成抽奖')
+            return body
+        })
 }
 
 async function doLogin(postTimes = 1, intervalSeconds = 30) {
