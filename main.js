@@ -1,10 +1,20 @@
+const fs = require('fs')
+const path = require('path')
 const fetch = require('node-fetch')
 const cheerio = require('cheerio')
 const cron = require('node-cron')
-const config = require('./config.json')
 const FormData = require('form-data')
 const tough = require('tough-cookie')
-const cookieJar = new tough.CookieJar()
+
+let config
+try {
+    const configPath = path.join(process.cwd(), 'config.json')
+    config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+} catch (error) {
+    console.error('無法讀取 config.json 文件，請確保文件存在於程序同目錄下')
+    console.error('錯誤信息:', error.message)
+    process.exit(1)
+}
 
 let formhash = ''
 const cookies = []
