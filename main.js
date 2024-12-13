@@ -75,7 +75,6 @@ function login() {
             return response.text()
         })
         .then(body => {
-            console.log(body)
             console.log('登錄成功')
             return body
         })
@@ -120,7 +119,6 @@ function postReply() {
             return response.text()
         })
         .then(body => {
-            console.log(body)
             console.log('發帖成功')
             return body
         })
