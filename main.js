@@ -1,9 +1,9 @@
 const fs = require('fs')
 const path = require('path')
-const fetch = require('node-fetch')
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args))
 const cheerio = require('cheerio')
 const cron = require('node-cron')
-const FormData = require('form-data')
+const {FormData} = require('formdata-node')
 const tough = require('tough-cookie')
 
 let config
@@ -75,13 +75,14 @@ function login() {
             return response.text()
         })
         .then(body => {
+            console.log(body)
             console.log('登錄成功')
             return body
         })
 }
 
 function getThreadFormhash() {
-    return fetch(`https://lineage45.com/thread-${config.tid}-1-1.html`, {
+    return fetch(`https://lineage45.com/forum.php?mod=forumdisplay&fid=49&page=1`, {
         headers: getHeaders()
     })
         .then(response => {
@@ -91,7 +92,7 @@ function getThreadFormhash() {
         .then(body => {
             const $ = cheerio.load(body)
             formhash = $('input[name="formhash"]').first().attr('value')
-            console.log('獲取到的帖子頁 formhash:', formhash)
+            console.log('獲取到的 formhash:', formhash)
             return formhash
         })
 }
@@ -99,14 +100,15 @@ function getThreadFormhash() {
 function postReply() {
     const currentTime = Math.floor(new Date().getTime() / 1000)
     const formData = new FormData()
-    formData.append('file', '')
-    formData.append('message', config.msg)
+    formData.append('typeid', '11')
+    formData.append('subject', '每日搖一搖')
+    formData.append('message', '每日搖一搖')
     formData.append('posttime', currentTime.toString())
     formData.append('formhash', formhash)
     formData.append('usesig', '1')
-    formData.append('subject', '')
+    formData.append('file', '')
 
-    return fetch(`https://lineage45.com/forum.php?mod=post&action=reply&fid=100&tid=${config.tid}&extra=page%3D1&replysubmit=yes&infloat=yes&handlekey=fastpost&inajax=1`, {
+    return fetch(`https://lineage45.com/forum.php?mod=post&action=newthread&fid=49&topicsubmit=yes&infloat=yes&handlekey=fastnewpost&inajax=1`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -118,6 +120,7 @@ function postReply() {
             return response.text()
         })
         .then(body => {
+            console.log(body)
             console.log('發帖成功')
             return body
         })
@@ -204,9 +207,9 @@ async function doLogin(postTimes = 1, intervalSeconds = 30) {
 if (config.cron) {
     console.log('當前為定時模式：')
     cron.schedule(config.cron, () => {
-        doLogin(config.times, 35)
+        doLogin(1, 35)
     })
 } else {
     console.log('當前為手動模式：')
-    doLogin(config.times, 35)
+    doLogin(1, 35)
 }

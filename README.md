@@ -5,14 +5,11 @@
 lineage45.com的自動登錄、簽到、搖獎工具
 
 # 使用
-- 下载l45h.exe，在同目錄下新建文件config.json，將https://github.com/xmflswood/lineage45Helper/blob/main/config.json 内容複製到文件下
-- 在config.json下配置好賬號、密碼
+- 下载l45h.rar解壓
+- 在config.json下配置好賬號(username)、密碼(password)
 - 執行l45h.exe等待完成
 
 # 配置補充説明
-- tid是準備發言的貼子地址，你可以改成其他帖子，當你訪問帖子的時候，從url中截取即可，例如https://lineage45.com/thread-225689-1-1.html， 截取中間的225689
-- times 是發帖數量，不可設定超過3次否則程式將直接閃退
-- msg 是發帖的内容
 - cron 定時執行配置，請配合下方“自動啓用”中使用。默認為""，立即執行且執行後退出（手動模式）。若設定為"0 2 * * *"即爲每天凌晨2點執行，且執行後不退出。若設定為"0 15 * * *"即爲每天下午3點執行，且執行後不退出。
 
 # 設定自動啓用
